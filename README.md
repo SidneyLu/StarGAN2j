@@ -30,6 +30,7 @@ Trained on RTX 2070 Super, single GPU, for 6 Days
 | Dataset | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) | Elapsed time  |
 |:--------|:------------:|:--------------:|:---------------:|:-----------------:|:-------------:|
 | `AFHQ2` |   60.8967    |     0.3850     |     61.2043     |      0.3486       |    
+
 run
 ```bash
 python main.py --mode eval --resume_iter 10000
