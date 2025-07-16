@@ -5,6 +5,20 @@
 鲁昕宁 南开大学 2414015@mail.nankai.edu.cn \
 由于工作量和计算资源的限制，目前仅复现了基于AFHQ2数据集的模型训练、评估、加载、保存功能及图片生成功能
 
+>Original Paper: https://arxiv.org/abs/1912.01865<br>
+>> **StarGAN v2: Diverse Image Synthesis for Multiple Domains**<br>
+> [Yunjey Choi](https://github.com/yunjey)\*, [Youngjung Uh](https://github.com/youngjung)\*, [Jaejun Yoo](http://jaejunyoo.blogspot.com/search/label/kr)\*, [Jung-Woo Ha](https://www.facebook.com/jungwoo.ha.921)<br>
+> In CVPR 2020. (* indicates equal contribution)<br>
+
+## Dependencies
+### Linux or WSL:
+
+### Windows 
+Not recommended, for unknown compile error while installing Jittor
+
+### MacOS 
+Not tested
+
 ## Generation
 ```bash
 python main.py --mode sample --resume_iter 10000 
@@ -27,8 +41,8 @@ Generated images and network checkpoints will be stored in `expr/samples` and `e
 Total iterations: 10000  
 Trained on RTX 2070 Super, single GPU, for 6 Days
 ## Evaluation
-| Dataset | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) | Elapsed time  |
-|:--------|:------------:|:--------------:|:---------------:|:-----------------:|:-------------:|
+| Dataset | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) |
+|:--------|:------------:|:--------------:|:---------------:|:-----------------:|
 | `AFHQ2` |   60.8967    |     0.3850     |     61.2043     |      0.3486       |    
 
 run

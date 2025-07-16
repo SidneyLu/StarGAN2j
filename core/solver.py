@@ -99,6 +99,9 @@ class Solver(Module):
 
         # Track the initial diversity sensitive weight
         initial_lambda_ds = args.lambda_ds
+        Logs = OrderedDict()
+        LogD = OrderedDict()
+        LogG = OrderedDict()
 
         print('Start training...')
         start_time = time.time()
@@ -113,23 +116,23 @@ class Solver(Module):
 
             # Train discriminator: real + fake
             d_loss, d_losses_latent = compute_d_loss(
-                nets, args, x_real, y_org, y_trg, z_trg=z_trg, masks=masks)
+                nets, args, x_real, y_org, y_trg, z_trg=z_trg, masks=masks, itr=i, LogD=LogD)
             # Jittor: optimizer.step(loss) performs backward and update
             optims.discriminator.step(d_loss)
 
             d_loss, d_losses_ref = compute_d_loss(
-                nets, args, x_real, y_org, y_trg, x_ref=x_ref, masks=masks)
+                nets, args, x_real, y_org, y_trg, x_ref=x_ref, masks=masks, itr=i, LogD=LogD)
             optims.discriminator.step(d_loss)
 
             # Train generator: latent and reference
             g_loss, g_losses_latent = compute_g_loss(
-                nets, args, x_real, y_org, y_trg, z_trgs=[z_trg, z_trg2], masks=masks)
+                nets, args, x_real, y_org, y_trg, z_trgs=[z_trg, z_trg2], masks=masks, itr=i, LogG=LogG)
             optims.generator.step(g_loss)
             optims.mapping_network.step(g_loss)
             optims.style_encoder.step(g_loss)
 
             g_loss, g_losses_ref = compute_g_loss(
-                nets, args, x_real, y_org, y_trg, x_refs=[x_ref, x_ref2], masks=masks)
+                nets, args, x_real, y_org, y_trg, x_refs=[x_ref, x_ref2], masks=masks,  itr=i, LogG=LogG)
             optims.generator.step(g_loss)
 
             # Update EMA networks
@@ -140,6 +143,15 @@ class Solver(Module):
             # Decay diversity-sensitive loss weight
             if args.lambda_ds > 0:
                 args.lambda_ds -= (initial_lambda_ds / args.ds_iter)
+
+            Log = OrderedDict()
+            Log['D_latent'] = d_losses_latent
+            Log['D_ref'] = d_losses_ref
+            Log['G_latent'] = g_losses_latent
+            Log['G_ref'] = g_losses_ref
+            Log['G_lambda_ds'] = args.lambda_ds
+            Logs['Iteration [%i]' % (i + 1)] = Log
+            utils.save_json(Logs, os.path.join(args.checkpoint_dir, 'log.json'))
 
             # Logging
             if (i+1) % args.print_every == 0:
@@ -186,7 +198,7 @@ class Solver(Module):
         utils.translate_using_reference(
             nets_ema, args, src.x, ref.x, ref.y, fname)
 
-
+    @jt.no_grad()
     def evaluate(self):
         args = self.args
         nets_ema = self.nets_ema
@@ -197,7 +209,7 @@ class Solver(Module):
 
 #Computing discriminator losses
 #计算判别器损失
-def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, masks=None):
+def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, masks=None, itr=0, LogD=None):
     assert (z_trg is None) != (x_ref is None), "Either z_trg or x_ref must be provided, but not both"
 
     # 真实图像上的损失
@@ -227,6 +239,13 @@ def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, mas
     loss_fake = adv_loss(out, 0)
     loss = loss_real + loss_fake + args.lambda_reg * loss_reg
 
+    json_D = OrderedDict()
+    json_D['loss_D_real'] = loss_real.tolist()
+    json_D['loss_D_fake'] = loss_fake.tolist()
+    json_D['loss_D_reg'] = (args.lambda_reg * loss_reg).tolist()
+    json_D['loss_D'] = loss.tolist()
+    LogD['Iteration [%i]' % (itr + 1)] = json_D
+    utils.save_json(LogD, ospj(args.checkpoint_dir, 'D.json'))
 
     return loss, Munch(real=loss_real.item(),
                        fake=loss_fake.item(),
@@ -234,7 +253,7 @@ def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, mas
 
 #Computing generator losses
 #计算生成器损失
-def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, masks=None):
+def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, masks=None,  itr=0, LogG=None):
     assert (z_trgs is None) != (x_refs is None), "Either z_trgs or x_refs must be provided, but not both"
 
     # 准备风格输入
@@ -278,6 +297,15 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
 
     loss = loss_adv + args.lambda_sty * loss_sty \
            - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc
+
+    json_G = OrderedDict()
+    json_G['loss_G_adv'] = loss_adv.tolist()
+    json_G['loss_G_sty'] = (args.lambda_sty * loss_sty).tolist()
+    json_G['loss_G_ds'] = (args.lambda_ds * loss_ds).tolist()
+    json_G['loss_G_cyc'] = (args.lambda_cyc * loss_cyc).tolist()
+    json_G['loss_G'] = loss.tolist()
+    LogG['Iteration [%i]' % (itr + 1)] = json_G
+    utils.save_json(LogG, ospj(args.checkpoint_dir, 'G.json'))
 
     return loss, Munch(adv=loss_adv.item(),
                        sty=loss_sty.item(),
