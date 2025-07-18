@@ -204,7 +204,7 @@ class Solver(Module):
         nets_ema = self.nets_ema
 
         self._load_checkpoint(args.resume_iter)
-        #calculate_metrics(nets_ema, args, step=args.resume_iter, mode='latent')
+        calculate_metrics(nets_ema, args, step=args.resume_iter, mode='latent')
         calculate_metrics(nets_ema, args, step=args.resume_iter, mode='reference')
 
 #Computing discriminator losses
@@ -239,11 +239,18 @@ def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, mas
     loss_fake = adv_loss(out, 0)
     loss = loss_real + loss_fake + args.lambda_reg * loss_reg
 
+    #Avoid async error
+    jt.sync_all()
+
     json_D = OrderedDict()
-    json_D['loss_D_real'] = loss_real.tolist()
-    json_D['loss_D_fake'] = loss_fake.tolist()
-    json_D['loss_D_reg'] = (args.lambda_reg * loss_reg).tolist()
-    json_D['loss_D'] = loss.tolist()
+    sloss_real = loss_real.tolist()
+    sloss_fake = loss_fake.tolist()
+    sloss_reg = (args.lambda_reg * loss_reg).tolist()
+    sloss = loss.tolist()
+    json_D['loss_D_real'] = sloss_real
+    json_D['loss_D_fake'] = sloss_fake
+    json_D['loss_D_reg'] = sloss_reg
+    json_D['loss_D'] = sloss
     LogD['Iteration [%i]' % (itr + 1)] = json_D
     utils.save_json(LogD, ospj(args.checkpoint_dir, 'D.json'))
 
@@ -298,12 +305,20 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
     loss = loss_adv + args.lambda_sty * loss_sty \
            - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc
 
+    #Avoid async error
+    jt.sync_all()
+
     json_G = OrderedDict()
-    json_G['loss_G_adv'] = loss_adv.tolist()
-    json_G['loss_G_sty'] = (args.lambda_sty * loss_sty).tolist()
-    json_G['loss_G_ds'] = (args.lambda_ds * loss_ds).tolist()
-    json_G['loss_G_cyc'] = (args.lambda_cyc * loss_cyc).tolist()
-    json_G['loss_G'] = loss.tolist()
+    sloss_adv = loss_adv.tolist()
+    sloss_sty = (args.lambda_sty * loss_sty).tolist()
+    sloss_ds = (args.lambda_ds * loss_ds).tolist()
+    sloss_cyc = (args.lambda_cyc * loss_cyc).tolist()
+    sloss = loss.tolist()
+    json_G['loss_G_adv'] = sloss_adv
+    json_G['loss_G_sty'] = sloss_sty
+    json_G['loss_G_ds'] = sloss_ds
+    json_G['loss_G_cyc'] = sloss_cyc
+    json_G['loss_G'] = sloss
     LogG['Iteration [%i]' % (itr + 1)] = json_G
     utils.save_json(LogG, ospj(args.checkpoint_dir, 'G.json'))
 
