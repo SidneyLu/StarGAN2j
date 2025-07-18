@@ -22,7 +22,8 @@ class CheckpointIO(object):
         print('Saving checkpoint into %s...' % fname)
         outdict = {}
         for name, module in self.module_dict.items():
-            outdict[name] = module.state_dict()
+            if hasattr(module, 'state_dict'):
+                outdict[name] = module.state_dict()
         jt.save(outdict, fname)
 
     #Load pretrained weights
