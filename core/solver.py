@@ -175,15 +175,15 @@ class Solver(Module):
             # Save checkpoints
             if (i+1) % args.save_every == 0:
                 self._save_checkpoint(step=i+1)
+                utils.save_json(LogD, ospj(args.checkpoint_dir, 'D.json'))
+                utils.save_json(LogG, ospj(args.checkpoint_dir, 'G.json'))
+                utils.save_json(Logs, os.path.join(args.checkpoint_dir, 'log.json'))
 
             # Evaluate
             if (i+1) % args.eval_every == 0:
                 calculate_metrics(nets_ema, args, step=i+1, mode='latent')
                 calculate_metrics(nets_ema, args, step=i+1, mode='reference')
 
-            utils.save_json(LogD, ospj(args.checkpoint_dir, 'D.json'))
-            utils.save_json(LogG, ospj(args.checkpoint_dir, 'G.json'))
-            utils.save_json(Logs, os.path.join(args.checkpoint_dir, 'log.json'))
 
     def sample(self, loaders):
         args = self.args
