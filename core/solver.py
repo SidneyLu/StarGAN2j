@@ -151,7 +151,6 @@ class Solver(Module):
             Log['G_ref'] = g_losses_ref
             Log['G_lambda_ds'] = args.lambda_ds
             Logs['Iteration [%i]' % (i + 1)] = Log
-            utils.save_json(Logs, os.path.join(args.checkpoint_dir, 'log.json'))
 
             # Logging
             if (i+1) % args.print_every == 0:
@@ -181,6 +180,10 @@ class Solver(Module):
             if (i+1) % args.eval_every == 0:
                 calculate_metrics(nets_ema, args, step=i+1, mode='latent')
                 calculate_metrics(nets_ema, args, step=i+1, mode='reference')
+
+            utils.save_json(LogD, ospj(args.checkpoint_dir, 'D.json'))
+            utils.save_json(LogG, ospj(args.checkpoint_dir, 'G.json'))
+            utils.save_json(Logs, os.path.join(args.checkpoint_dir, 'log.json'))
 
     def sample(self, loaders):
         args = self.args
@@ -252,7 +255,6 @@ def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, mas
     json_D['loss_D_reg'] = sloss_reg
     json_D['loss_D'] = sloss
     LogD['Iteration [%i]' % (itr + 1)] = json_D
-    utils.save_json(LogD, ospj(args.checkpoint_dir, 'D.json'))
 
     return loss, Munch(real=loss_real.item(),
                        fake=loss_fake.item(),
@@ -320,7 +322,6 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
     json_G['loss_G_cyc'] = sloss_cyc
     json_G['loss_G'] = sloss
     LogG['Iteration [%i]' % (itr + 1)] = json_G
-    utils.save_json(LogG, ospj(args.checkpoint_dir, 'G.json'))
 
     return loss, Munch(adv=loss_adv.item(),
                        sty=loss_sty.item(),

@@ -99,7 +99,7 @@ Your evaluation results will be saved into `expr/eval`
 ### Loss Curves 
 (use visualizer.py to visualize json files) 
 
-### Evaluation Metrics
+### Evaluation Metrics (on AFHQ2 Dataset)
 | Implementation  | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) |
 |:---------------:|:------------:|:--------------:|:---------------:|:-----------------:|
 |     PyTorch     |              |                |                 |                   |
