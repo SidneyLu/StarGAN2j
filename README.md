@@ -97,16 +97,29 @@ Your evaluation results will be saved into `expr/eval`
 
 ## Alignment with Official Pytorch Implementation
 ### Loss Curves 
-(use visualizer.py to visualize json files) 
+(use `visualizer.py` to visualize json files)
+#### PyTorch
+<p><img width="100%" src="assets/losst.jpg" /></p>
+
+#### Jittor
+<p><img width="100%" src="assets/lossj.jpg" /></p>
 
 ### Evaluation Metrics (on AFHQ2 Dataset)
-| Implementation  | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) |
-|:---------------:|:------------:|:--------------:|:---------------:|:-----------------:|
-|     PyTorch     |              |                |                 |                   |
-|     Jittor      |              |                |                 |                   |
+Spuriously Underfitted, please refer to the official repository for real performance.
+
+| Implementation  |    FID (latent)    |  LPIPS (latent)  |  FID (reference)   | LPIPS (reference) |
+|:---------------:|:------------------:|:----------------:|:------------------:|:-----------------:|
+|     PyTorch     | 41.3572 ± 22.4644  | 0.2696 ± 0.0376  | 46.9540 ± 27.7860  |  0.3211 ± 0.0252  |
+|     Jittor      |                    |                  |                    |                   |   
 
 
 ### Samples
+#### PyTorch
+<p><img width="100%" src="assets/referencet.jpg" /></p>
+
+#### Jittor
+<p><img width="100%" src="assets/referencej.jpg" /></p>
+
 ### Generalization (on AnimalWeb Dataset https://arxiv.org/abs/1909.04951)
 
 ## Citation
