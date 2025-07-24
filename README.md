@@ -23,7 +23,7 @@ Then prepare your conda environment
 ```bash
 conda create -n stargan-v2j python=3.10
 conda activate stargan-v2j
-conda install -c conda-forge 
+conda install -c conda-forge libstdcxx-ng=12.3.0 -y
 ```
 ```bash
 pip install -r requirements.txt
@@ -33,7 +33,7 @@ Warnings:
 - Please check all the libraries (e.g. opencv-python) depending on NumPy thoroughly in advance, and downgrade them if necessary. 
 - Jittor will detect your system CUDA path automatically, in case of unknown problems, specifying Jittor's own CUDA path is highly recommended, e.g.:
     ```bash
-    python - m jittor_utils.install_cuda
+    python -m jittor_utils.install_cuda 
     ```
 - The default cuda version is 12.2, with cuDNN 8, DO NOT USE cuDNN 9 or later!
 - CUDA 11.7/11.8/12.2/12.4/12.8 are all supported. 
@@ -67,7 +67,11 @@ Then run
 ```bash
 python main.py --mode sample --resume_iter 100000 
 ```
-Pretrained network is stored in 'expr/checkpoints'  
+Pretrained network is stored in `expr/checkpoints`, run
+```bash
+unzip expr/checkpoints/nets_ema_100000.zip
+```
+to get the .pth file. \
 Outputs will be saved in `expr/results` directory. 
 
 ## Training 
