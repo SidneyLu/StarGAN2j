@@ -120,22 +120,11 @@ Spuriously Underfitted, please refer to the official repository for real perform
 #### Jittor
 <p><img width="100%" src="assets/referencej.jpg" /></p>
 
-### Generalization (on AnimalWeb Dataset https://arxiv.org/abs/1909.04951)
-
 ## Citation
 ```
 @InProceedings{Choi_2020_CVPR,
 author = {Choi, Yunjey and Uh, Youngjung and Yoo, Jaejun and Ha, Jung-Woo},
 title = {StarGAN v2: Diverse Image Synthesis for Multiple Domains},
-booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-month = {June},
-year = {2020}
-}
-```
-```
-@InProceedings{Khan_2020_CVPR,
-author = {Khan, Muhammad Haris and McDonagh, John and Khan, Salman and Shahabuddin, Muhammad and Arora, Aditya and Khan, Fahad Shahbaz and Shao, Ling and Tzimiropoulos, Georgios},
-title = {AnimalWeb: A Large-Scale Hierarchical Dataset of Annotated Animal Faces},
 booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
 month = {June},
 year = {2020}
