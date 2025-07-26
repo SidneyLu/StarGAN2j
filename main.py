@@ -6,7 +6,7 @@ import jittor as jt
 
 from core.data_loader import get_train_loader
 from core.data_loader import get_test_loader
-from core.solver2 import Solver
+from core.solver import Solver
 
 
 def str2bool(v):
@@ -100,7 +100,7 @@ if __name__ == '__main__':
                         help='Probabilty of using random-resized cropping')
     parser.add_argument('--total_iters', type=int, default=100000,
                         help='Number of total iterations')
-    parser.add_argument('--resume_iter', type=int, default=100000,
+    parser.add_argument('--resume_iter', type=int, default=0,
                         help='Iterations to resume training/testing')
     parser.add_argument('--batch_size', type=int, default=4,
                         help='Batch size for training')

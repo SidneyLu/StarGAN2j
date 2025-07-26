@@ -1,11 +1,13 @@
 import os
+from collections import OrderedDict
 from os.path import join as ospj
 import time
 import datetime
 from munch import Munch
-from collections import OrderedDict
+
 import jittor as jt
-import jittor.nn as nn
+from jittor import nn, Module
+
 
 jt.flags.use_cuda = 1
 
@@ -15,121 +17,18 @@ from core.data_loader import InputFetcher
 import core.utils as utils
 from metrics.eval import calculate_metrics
 
-def adv_loss(logits, target) -> jt.Var:
-    targets = jt.full_like(logits, target)
-    loss = nn.binary_cross_entropy_with_logits(logits, targets)
-    return loss
+"""This is the Solver module"""
+"""求解器模块"""
 
-
-def r1_reg(d_out, x_in):
-    batch_size = x_in.shape[0]
-    grad = jt.grad(d_out.sum(), x_in, retain_graph=True)[0]
-    grad2 = grad.pow(2)
-    reg = 0.5 * grad2.view(batch_size, -1).sum(1).mean(0)
-    return reg
-
-
-def moving_average(model, model_test, decay=0.999):
-    for param, param_test in zip(model.parameters(), model_test.parameters()):
-        param_test.data = utils.lerp(param.data, param_test.data, decay)
-
-
-def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, masks=None, itr=None, LogD=None):
-    x_real.start_grad()
-    out = nets.discriminator(x_real, y_org)
-    loss_real = adv_loss(out, 1)
-    loss_reg = r1_reg(out, x_real)
-    loss_reg.start_grad()
-
-    with jt.no_grad():
-        if z_trg is not None:
-            s_trg = nets.mapping_network(z_trg, y_trg)
-        else:
-            s_trg = nets.style_encoder(x_ref, y_trg)
-
-        x_fake = nets.generator(x_real, s_trg, masks=masks)
-    out = nets.discriminator(x_fake, y_trg)
-    loss_fake = adv_loss(out, 0)
-
-    loss = loss_real + loss_fake + args.lambda_reg * loss_reg
-    loss.start_grad()
-
-    json_D = OrderedDict()
-    sloss_real = loss_real.tolist()
-    sloss_fake = loss_fake.tolist()
-    sloss_reg = (args.lambda_reg * loss_reg).tolist()
-    sloss = loss.tolist()
-    json_D['loss_D_real'] = sloss_real
-    json_D['loss_D_fake'] = sloss_fake
-    json_D['loss_D_reg'] = sloss_reg
-    json_D['loss_D'] = sloss
-    LogD['Iteration [%i]' % (itr + 1)] = json_D
-
-    return loss, Munch(real=loss_real, fake=loss_fake, reg=loss_reg)
-
-
-def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, masks=None, itr=None, LogG=None):
-    x_real.start_grad()
-    if z_trgs is not None:
-        z_trg, z_trg2 = z_trgs
-        z_trg.start_grad()
-        z_trg2.start_grad()
-    if x_refs is not None:
-        x_ref, x_ref2 = x_refs
-        x_ref.start_grad()
-        x_ref2.start_grad()
-
-    if z_trgs is not None:
-        s_trg = nets.mapping_network(z_trg, y_trg)
-    else:
-        s_trg = nets.style_encoder(x_ref, y_trg)
-    s_trg.start_grad()
-
-    x_fake = nets.generator(x_real, s_trg, masks=masks)
-    out = nets.discriminator(x_fake, y_trg)
-    loss_adv = adv_loss(out, 1).start_grad()
-
-    s_pred = nets.style_encoder(x_fake, y_trg)
-    s_pred.start_grad()
-    loss_sty = jt.mean(jt.abs(s_pred - s_trg)).start_grad()
-
-    if z_trgs is not None:
-        s_trg2 = nets.mapping_network(z_trg2, y_trg)
-    else:
-        s_trg2 = nets.style_encoder(x_ref2, y_trg)
-    s_trg2.start_grad()
-    x_fake2 = nets.generator(x_real, s_trg2, masks=masks)
-    x_fake2.start_grad()
-    loss_ds = jt.mean(jt.abs(x_fake - x_fake2)).start_grad()
-
-    s_org = nets.style_encoder(x_real, y_org)
-    x_rec = nets.generator(x_fake, s_org, masks=masks)
-    x_rec.start_grad()
-    loss_cycle = jt.mean(jt.abs(x_rec - x_real)).start_grad()
-
-    loss = loss_adv + args.lambda_sty * loss_sty - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cycle
-    loss.start_grad()
-    json_G = OrderedDict()
-    sloss_adv = loss_adv.tolist()
-    sloss_sty = (args.lambda_sty * loss_sty).tolist()
-    sloss_ds = (args.lambda_ds * loss_ds).tolist()
-    sloss_cyc = (args.lambda_cyc * loss_cycle).tolist()
-    sloss = loss.tolist()
-    json_G['loss_G_adv'] = sloss_adv
-    json_G['loss_G_sty'] = sloss_sty
-    json_G['loss_G_ds'] = sloss_ds
-    json_G['loss_G_cyc'] = sloss_cyc
-    json_G['loss_G'] = sloss
-    LogG['Iteration [%i]' % (itr + 1)] = json_G
-    return loss, Munch(adv=loss_adv, sty=loss_sty, ds=loss_ds, cycle=loss_cycle)
-
-
-class Solver(jt.Module):
+class Solver(Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
+
+        # Build networks and their EMA copies
         self.nets, self.nets_ema = build_model(args)
 
+        # Make networks children of Solver for parameter registration
         for name, module in self.nets.items():
             utils.print_network(module, name)
             setattr(self, name, module)
@@ -139,25 +38,35 @@ class Solver(jt.Module):
         if args.mode == 'train':
             self.optims = Munch()
             for net in self.nets.keys():
-                self.optims[net] = jt.optim.Adam(
-                    params=self.nets[net].parameters(),
-                    lr=args.f_lr if net == 'mapping_network' else args.lr,
-                    betas=[args.beta1, args.beta2],
-                    weight_decay=args.weight_decay)
-
+                if net == 'fan':
+                    continue
+                lr = args.f_lr if net == 'mapping_network' else args.lr
+                # Use Jittor's Adam optimizer (step(loss) includes backward)
+                self.optims[net] = nn.Adam(
+                    self.nets[net].parameters(),
+                    lr=lr,
+                    betas=(args.beta1, args.beta2),
+                    weight_decay=args.weight_decay
+                )
             self.ckptios = [
-                CheckpointIO(ospj(args.checkpoint_dir, 'nets_{:06d}.pth'), data_parallel=True, **self.nets),
-                CheckpointIO(ospj(args.checkpoint_dir, 'nets_ema_{:06d}.pth'), data_parallel=True, **self.nets_ema),
-                CheckpointIO(ospj(args.checkpoint_dir, 'optims_{:06d}.pth'), **self.optims)]
-
+                CheckpointIO(ospj(args.checkpoint_dir, 'nets_{:06d}.pth'),
+                             data_parallel=True, **self.nets),
+                CheckpointIO(ospj(args.checkpoint_dir, 'nets_ema_{:06d}.pth'),
+                             data_parallel=True, **self.nets_ema),
+                CheckpointIO(ospj(args.checkpoint_dir, 'optims_{:06d}.pth'),
+                             **self.optims)
+            ]
         else:
             self.ckptios = [
-                CheckpointIO(ospj(args.checkpoint_dir, 'nets_ema_{:06d}.pth'), data_parallel=True, **self.nets_ema)]
+                CheckpointIO(ospj(args.checkpoint_dir, 'nets_ema_{:06d}.pth'),
+                             data_parallel=True, **self.nets_ema)
+            ]
 
+        # Initialize network weights (excluding EMA and FAN)
         for name, network in self.named_children():
-            if 'ema' not in name:
+            if 'ema' not in name and 'fan' not in name:
                 print('Initializing %s...' % name)
-                network.apply(utils.he_init)
+                utils.he_init(network)
 
     def _save_checkpoint(self, step):
         for ckptio in self.ckptios:
@@ -167,19 +76,28 @@ class Solver(jt.Module):
         for ckptio in self.ckptios:
             ckptio.load(step)
 
+    def _reset_grad(self):
+        # In Jittor, gradients are handled in optimizer.step(loss), so zero_grad is typically not needed.
+        # This method is kept for interface compatibility but does nothing.
+        for optim in self.optims.values():
+            optim.zero_grad()
+
     def train(self, loaders):
         args = self.args
         nets = self.nets
         nets_ema = self.nets_ema
         optims = self.optims
 
+        # Prepare data fetchers
         fetcher = InputFetcher(loaders.src, loaders.ref, args.latent_dim, 'train')
         fetcher_val = InputFetcher(loaders.val, None, args.latent_dim, 'val')
         inputs_val = next(fetcher_val)
 
+        # Resume training if needed
         if args.resume_iter > 0:
             self._load_checkpoint(args.resume_iter)
 
+        # Track the initial diversity sensitive weight
         initial_lambda_ds = args.lambda_ds
         Logs = OrderedDict()
         LogD = OrderedDict()
@@ -187,39 +105,42 @@ class Solver(jt.Module):
 
         print('Start training...')
         start_time = time.time()
+
         for i in range(args.resume_iter, args.total_iters):
             inputs = next(fetcher)
-            x_real = inputs.x_src
-            y_org = inputs.y_src
-            x_ref = inputs.x_ref
-            x_ref2 = inputs.x_ref2
-            y_trg = inputs.y_ref
-            z_trg = inputs.z_trg
-            z_trg2 = inputs.z_trg2
-            masks = None
+            x_real, y_org = inputs.x_src, inputs.y_src
+            x_ref, x_ref2, y_trg = inputs.x_ref, inputs.x_ref2, inputs.y_ref
+            z_trg, z_trg2 = inputs.z_trg, inputs.z_trg2
 
-            d_loss, d_losses_latent = compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=z_trg, masks=masks, itr=i, LogD=LogD)
-            d_loss.start_grad()
-            optims['discriminator'].step(d_loss)
+            masks = nets.fan.get_heatmap(x_real) if args.w_hpf > 0 else None
 
-            d_loss, d_losses_ref = compute_d_loss(nets, args, x_real, y_org, y_trg, x_ref=x_ref, masks=masks, itr=i, LogD=LogD)
-            optims['discriminator'].step(d_loss)
+            # Train discriminator: real + fake
+            d_loss, d_losses_latent = compute_d_loss(
+                nets, args, x_real, y_org, y_trg, z_trg=z_trg, masks=masks, itr=i, LogD=LogD)
+            # Jittor: optimizer.step(loss) performs backward and update
+            optims.discriminator.step(d_loss)
 
-            g_loss, g_losses_latent = compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=(z_trg, z_trg2), masks=masks, itr=i, LogG=LogG)
-            g_loss.start_grad()
-            g_loss1 = g_loss.clone()
-            g_loss1.start_grad()
-            optims['generator'].step(g_loss)
-            optims['mapping_network'].step(g_loss1)
-            optims['style_encoder'].step(g_loss1)
+            d_loss, d_losses_ref = compute_d_loss(
+                nets, args, x_real, y_org, y_trg, x_ref=x_ref, masks=masks, itr=i, LogD=LogD)
+            optims.discriminator.step(d_loss)
 
-            g_loss, g_losses_ref = compute_g_loss(nets, args, x_real, y_org, y_trg, x_refs=(x_ref, x_ref2), masks=masks, itr=i, LogG=LogG)
-            optims['generator'].step(g_loss)
+            # Train generator: latent and reference
+            g_loss, g_losses_latent = compute_g_loss(
+                nets, args, x_real, y_org, y_trg, z_trgs=[z_trg, z_trg2], masks=masks, itr=i, LogG=LogG)
+            optims.generator.step(g_loss)
+            optims.mapping_network.step(g_loss)
+            optims.style_encoder.step(g_loss)
 
-            moving_average(nets.generator, nets_ema.generator, decay=0.999)
-            moving_average(nets.mapping_network, nets_ema.mapping_network, decay=0.999)
-            moving_average(nets.style_encoder, nets_ema.style_encoder, decay=0.999)
+            g_loss, g_losses_ref = compute_g_loss(
+                nets, args, x_real, y_org, y_trg, x_refs=[x_ref, x_ref2], masks=masks,  itr=i, LogG=LogG)
+            optims.generator.step(g_loss)
 
+            # Update EMA networks
+            moving_average(nets.generator, nets_ema.generator, beta=0.999)
+            moving_average(nets.mapping_network, nets_ema.mapping_network, beta=0.999)
+            moving_average(nets.style_encoder, nets_ema.style_encoder, beta=0.999)
+
+            # Decay diversity-sensitive loss weight
             if args.lambda_ds > 0:
                 args.lambda_ds -= (initial_lambda_ds / args.ds_iter)
 
@@ -231,34 +152,38 @@ class Solver(jt.Module):
             Log['G_lambda_ds'] = args.lambda_ds
             Logs['Iteration [%i]' % (i + 1)] = Log
 
+            # Logging
             if (i+1) % args.print_every == 0:
                 elapsed = time.time() - start_time
                 elapsed = str(datetime.timedelta(seconds=elapsed))[:-7]
                 log = "Elapsed time [%s], Iteration [%i/%i], " % (elapsed, i+1, args.total_iters)
-                all_losses = dict()
-                for loss, prefix in zip([d_losses_latent, d_losses_ref, g_losses_latent, g_losses_ref],
-                                        ['D/latent_', 'D/ref_', 'G/latent_', 'G/ref_']):
+                all_losses = {}
+                for loss, prefix in zip(
+                        [d_losses_latent, d_losses_ref, g_losses_latent, g_losses_ref],
+                        ['D/latent_', 'D/ref_', 'G/latent_', 'G/ref_']):
                     for key, value in loss.items():
                         all_losses[prefix + key] = value
                 all_losses['G/lambda_ds'] = args.lambda_ds
-                log += ' '.join(['%s: [%.4f]' % (key, value) for key, value in all_losses.items()])
+                log += ' '.join(['%s: [%.4f]' % (k, v) for k, v in all_losses.items()])
                 print(log)
 
-            # generate images for debugging
-            if (i + 1) % args.sample_every == 0:
+            # Sample images for debugging
+            if (i+1) % args.sample_every == 0:
                 os.makedirs(args.sample_dir, exist_ok=True)
-                utils.debug_image(nets_ema, args, inputs=inputs_val, step=i + 1)
+                utils.debug_image(nets_ema, args, inputs=inputs_val, step=i+1)
 
-            # save model checkpoints
-            if (i + 1) % args.save_every == 0:
-                self._save_checkpoint(step=i + 1)
+            # Save checkpoints
+            if (i+1) % args.save_every == 0:
+                self._save_checkpoint(step=i+1)
                 utils.save_json(LogD, ospj(args.checkpoint_dir, 'D.json'))
                 utils.save_json(LogG, ospj(args.checkpoint_dir, 'G.json'))
                 utils.save_json(Logs, os.path.join(args.checkpoint_dir, 'log.json'))
 
+            # Evaluate
             if (i+1) % args.eval_every == 0:
                 calculate_metrics(nets_ema, args, step=i+1, mode='latent')
                 calculate_metrics(nets_ema, args, step=i+1, mode='reference')
+
 
     def sample(self, loaders):
         args = self.args
@@ -284,3 +209,135 @@ class Solver(jt.Module):
         self._load_checkpoint(args.resume_iter)
         calculate_metrics(nets_ema, args, step=args.resume_iter, mode='latent')
         calculate_metrics(nets_ema, args, step=args.resume_iter, mode='reference')
+
+#Computing discriminator losses
+#计算判别器损失
+def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, masks=None, itr=0, LogD=None):
+    assert (z_trg is None) != (x_ref is None), "Either z_trg or x_ref must be provided, but not both"
+
+    # 真实图像上的损失
+    x_real.start_grad()
+    out = nets.discriminator(x_real, y_org)
+    loss_real = adv_loss(out, 1)
+
+    # R1 regularization (gradient penalty for real images)
+    grad_dout = jt.grad(out.sum(), x_real)
+    grad_dout2 = grad_dout.pow(2)
+    batch_size = x_real.shape[0]
+    # Sum over each sample, then mean
+    reg = 0.5 * grad_dout2.reshape(batch_size, -1).sum(1).mean()
+    loss_reg = args.lambda_reg * reg
+
+    # 生成假图像
+    with jt.no_grad():
+        if z_trg is not None:
+            s_trg = nets.mapping_network(z_trg, y_trg)
+        else:  # x_ref is not None
+            s_trg = nets.style_encoder(x_ref, y_trg)
+
+        x_fake = nets.generator(x_real, s_trg, masks=masks)
+
+    # 假图像上的损失
+    out = nets.discriminator(x_fake, y_trg)
+    loss_fake = adv_loss(out, 0)
+    loss = loss_real + loss_fake + args.lambda_reg * loss_reg
+
+    #Avoid async error
+    jt.sync_all()
+
+    json_D = OrderedDict()
+    sloss_real = loss_real.tolist()
+    sloss_fake = loss_fake.tolist()
+    sloss_reg = (args.lambda_reg * loss_reg).tolist()
+    sloss = loss.tolist()
+    json_D['loss_D_real'] = sloss_real
+    json_D['loss_D_fake'] = sloss_fake
+    json_D['loss_D_reg'] = sloss_reg
+    json_D['loss_D'] = sloss
+    LogD['Iteration [%i]' % (itr + 1)] = json_D
+
+    return loss, Munch(real=loss_real.item(),
+                       fake=loss_fake.item(),
+                       reg=loss_reg.item())
+
+#Computing generator losses
+#计算生成器损失
+def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, masks=None,  itr=0, LogG=None):
+    assert (z_trgs is None) != (x_refs is None), "Either z_trgs or x_refs must be provided, but not both"
+
+    # 准备风格输入
+    if z_trgs is not None:
+        z_trg, z_trg2 = z_trgs
+    if x_refs is not None:
+        x_ref, x_ref2 = x_refs
+
+    # 对抗损失
+    if z_trgs is not None:
+        s_trg = nets.mapping_network(z_trg, y_trg)
+    else:
+        s_trg = nets.style_encoder(x_ref, y_trg)
+
+    x_fake = nets.generator(x_real, s_trg, masks=masks)
+    out = nets.discriminator(x_fake, y_trg)
+    loss_adv = adv_loss(out, 1)
+
+    # 风格重建损失
+    s_pred = nets.style_encoder(x_fake, y_trg)
+    loss_sty = jt.mean(jt.abs(s_pred - s_trg))
+
+    # 多样性敏感损失
+    if z_trgs is not None:
+        s_trg2 = nets.mapping_network(z_trg2, y_trg)
+    else:
+        s_trg2 = nets.style_encoder(x_ref2, y_trg)
+
+    x_fake2 = nets.generator(x_real, s_trg2, masks=masks)
+    loss_ds = jt.mean(jt.abs(x_fake - x_fake2))
+
+    # 循环一致性损失
+    if args.w_hpf > 0 and hasattr(nets, 'fan'):
+        masks = nets.fan.get_heatmap(x_fake)
+    else:
+        masks = None
+
+    s_org = nets.style_encoder(x_real, y_org)
+    x_rec = nets.generator(x_fake, s_org, masks=masks)
+    loss_cyc = jt.mean(jt.abs(x_rec - x_real))
+
+    loss = loss_adv + args.lambda_sty * loss_sty \
+           - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc
+
+    #Avoid async error
+    jt.sync_all()
+
+    json_G = OrderedDict()
+    sloss_adv = loss_adv.tolist()
+    sloss_sty = (args.lambda_sty * loss_sty).tolist()
+    sloss_ds = (args.lambda_ds * loss_ds).tolist()
+    sloss_cyc = (args.lambda_cyc * loss_cyc).tolist()
+    sloss = loss.tolist()
+    json_G['loss_G_adv'] = sloss_adv
+    json_G['loss_G_sty'] = sloss_sty
+    json_G['loss_G_ds'] = sloss_ds
+    json_G['loss_G_cyc'] = sloss_cyc
+    json_G['loss_G'] = sloss
+    LogG['Iteration [%i]' % (itr + 1)] = json_G
+
+    return loss, Munch(adv=loss_adv.item(),
+                       sty=loss_sty.item(),
+                       ds=loss_ds.item(),
+                       cyc=loss_cyc.item())
+
+
+def moving_average(model, model_test, beta=0.999):
+    for param, param_test in zip(model.parameters(), model_test.parameters()):
+        param_test *= beta
+        param_test += param * (1 - beta)
+
+
+def adv_loss(logits, target):
+    # Create target tensor
+    targets = jt.full_like(logits, target)
+    loss = nn.binary_cross_entropy_with_logits(logits, targets)
+    return loss
+
