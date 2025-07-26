@@ -54,9 +54,7 @@ class DefaultDataset(Dataset):
 
             if self.transform is not None:
                 img = self.transform(img)
-                # 确保返回的是Jittor张量
-                if not isinstance(img, jittor.Var):
-                    img = jittor.array(img)
+                img = jittor.array(np.array(img))
 
             # 确保张量是3D [C, H, W]
             assert img.ndim == 3, f"样本维度错误: 期望3D，实际{img.ndim}D"
@@ -92,6 +90,8 @@ class ReferenceDataset(Dataset):
         label = self.targets[index]
         img = Image.open(fname).convert('RGB')
         img2 = Image.open(fname2).convert('RGB')
+        img = jittor.array(np.array(img))
+        img2 = jittor.array(np.array(img2))
         if self.transform is not None:
             img = self.transform(img)
             img2 = self.transform(img2)
@@ -141,7 +141,7 @@ class ImageFolder(Dataset):
         img_path, label = self.samples[index]
 
         img = Image.open(img_path).convert('RGB')  # 统一转换为 RGB 格式
-
+        img = jittor.array(np.array(img))  # 转换为 Jittor 张量
         if self.transform is not None:
             img = self.transform(img)
 
@@ -321,8 +321,8 @@ class InputFetcher:
         x, y = self._fetch_inputs()
         if self.mode == 'train':
             x_ref, x_ref2, y_ref = self._fetch_refs()
-            z_trg = jittor.randn(x.size(0), self.latent_dim)
-            z_trg2 = jittor.randn(x.size(0), self.latent_dim)
+            z_trg = jittor.randn(x.shape[0], self.latent_dim)
+            z_trg2 = jittor.randn(x.shape[0], self.latent_dim)
             inputs = Munch(x_src=x, y_src=y, y_ref=y_ref,
                            x_ref=x_ref, x_ref2=x_ref2,
                            z_trg=z_trg, z_trg2=z_trg2)

@@ -6,7 +6,7 @@ import jittor as jt
 
 from core.data_loader import get_train_loader
 from core.data_loader import get_test_loader
-from core.solver import Solver
+from core.solver2 import Solver
 
 
 def str2bool(v):
@@ -98,9 +98,9 @@ if __name__ == '__main__':
     # training arguments
     parser.add_argument('--randcrop_prob', type=float, default=0.5,
                         help='Probabilty of using random-resized cropping')
-    parser.add_argument('--total_iters', type=int, default=10000,
+    parser.add_argument('--total_iters', type=int, default=100000,
                         help='Number of total iterations')
-    parser.add_argument('--resume_iter', type=int, default=0,
+    parser.add_argument('--resume_iter', type=int, default=100000,
                         help='Iterations to resume training/testing')
     parser.add_argument('--batch_size', type=int, default=4,
                         help='Batch size for training')
@@ -154,8 +154,8 @@ if __name__ == '__main__':
     # step size
     parser.add_argument('--print_every', type=int, default=10)
     parser.add_argument('--sample_every', type=int, default=50)
-    parser.add_argument('--save_every', type=int, default=1000)
-    parser.add_argument('--eval_every', type=int, default=2000)
+    parser.add_argument('--save_every', type=int, default=10000)
+    parser.add_argument('--eval_every', type=int, default=200000)
 
     args = parser.parse_args()
     main(args)

@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import json
+from matplotlib.legend_handler import HandlerLine2D
 
 
 def load_json_file(file_path):
@@ -21,8 +22,8 @@ def load_json_file(file_path):
 
 
 # 直接指定文件名
-file_path1 = 'expr/checkpoints/G.json'
-file_path2 = 'expr/checkpoints/D.json'
+file_path1 = 'expr/checkpoints/logj/G.json'
+file_path2 = 'expr/checkpoints/logj/D.json'
 
 # 加载两个文件的数据
 print(f"正在从 '{file_path1}' 和 '{file_path2}' 加载数据...")
@@ -66,7 +67,7 @@ iteration_indices1 = list(range(1, len(iterations1) + 1))
 iteration_indices2 = list(range(1, len(iterations2) + 1))
 
 # 创建图形和两个子图（上下布局）
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(38.4, 21.6), sharex=False)
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(153.6, 86.4), sharex=False)
 
 # 生成颜色映射，覆盖可能的最大损失类型数量
 max_loss_types = max(len(loss_types1), len(loss_types2))
@@ -81,12 +82,15 @@ for i, loss_type in enumerate(loss_types1):
     ax1.plot(valid_indices1, valid_values1, ':',
              label=loss_type, color=colors[i], linewidth=2)
 
-ax1.set_title(f'Generator Losses', fontsize=48)
-ax1.set_ylabel('Loss Values', fontsize=48)
-ax1.tick_params(axis='y', labelsize=48)
+ax1.set_title(f'Generator Losses', fontsize=192)
+ax1.set_ylabel('Loss Values', fontsize=192)
+ax1.tick_params(axis='y', labelsize=192)
 ax1.set_ylim(0, 4)
 ax1.grid(True, linestyle='--', alpha=0.7)
-ax1.legend(fontsize=36, loc='upper right')
+leg1 = ax1.legend(fontsize=108, loc='upper right')
+
+for line in leg1.get_lines():
+    line.set_linewidth(48)
 
 # 在下部子图绘制D.json的数据
 for i, loss_type in enumerate(loss_types2):
@@ -97,15 +101,16 @@ for i, loss_type in enumerate(loss_types2):
     ax2.plot(valid_indices2, valid_values2, ':',
              label=loss_type, color=colors[i], linewidth=2)
 
-ax2.set_title(f'Discriminator Losses', fontsize=48)
-ax2.set_xlabel('Iterations', fontsize=48)
-ax2.set_ylabel('Loss Values', fontsize=48)
-ax2.tick_params(axis='x', labelsize=48, rotation=45)
-ax2.tick_params(axis='y', labelsize=48)
+ax2.set_title(f'Discriminator Losses', fontsize=192)
+ax2.set_xlabel('Iterations', fontsize=192)
+ax2.set_ylabel('Loss Values', fontsize=192)
+ax2.tick_params(axis='x', labelsize=192, rotation=45)
+ax2.tick_params(axis='y', labelsize=192)
 ax2.set_ylim(0, 4)
 ax2.grid(True, linestyle='--', alpha=0.7)
-ax2.legend(fontsize=36, loc='upper right')
+leg2 = ax2.legend(fontsize=108, loc='upper right')
 
-
+for line in leg2.get_lines():
+    line.set_linewidth(48)
 # 显示图表
 plt.show()

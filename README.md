@@ -85,36 +85,41 @@ Then
 python main.py --mode train 
 ```
 Generated images and network checkpoints will be stored in `expr/samples` and `expr/checkpoints` directories respectively. \
-Total iterations: 100000  
+Total iterations: 100000
 Trained on RTX 4090 (48GB), single GPU, for 6 Days  
-Original training logs are also saved in `expr/checkpoints`
+Original training logs are also saved in `expr/checkpoints`  
+`logt` - PyTorch, `logj` - Jittor
 
 ## Evaluation
 | Dataset | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) |
 |:-------:|:------------:|:--------------:|:---------------:|:-----------------:|
-|  AFHQ2  |              |                |                 |                   |
+|  AFHQ2  |   18.9874    |     0.4499     |     22.8643     |      0.4316       |
 run
 ```bash
 python main.py --mode eval --resume_iter 100000
 ```
 Your evaluation results will be saved into `expr/eval`
+Original evaluation logs are also saved in `expr/eval`
+`evalt` - PyTorch, `evalj` - Jittor
 
 ## Alignment with Official Pytorch Implementation
 ### Loss Curves 
 (use `visualizer.py` to visualize json files)
 #### PyTorch
 <p><img width="100%" src="assets/losst.jpg" /></p>
+Spuriously Underfitted after 30000 iterations
 
 #### Jittor
 <p><img width="100%" src="assets/lossj.jpg" /></p>
+Failed to converge
 
 ### Evaluation Metrics (on AFHQ2 Dataset)
-Spuriously Underfitted, please refer to the official repository for real performance.
+Referring to the official pretrained weights for real performance.
 
-| Implementation  |    FID (latent)    |  LPIPS (latent)  |  FID (reference)   | LPIPS (reference) |
-|:---------------:|:------------------:|:----------------:|:------------------:|:-----------------:|
-|     PyTorch     | 41.3572 ± 22.4644  | 0.2696 ± 0.0376  | 46.9540 ± 27.7860  |  0.3211 ± 0.0252  |
-|     Jittor      |                    |                  |                    |                   |   
+| Implementation  | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) |
+|:---------------:|:------------:|:--------------:|:---------------:|:-----------------:|
+|     PyTorch     |   16.9997    |     0.4495     |     20.6854     |      0.4318       |
+|     Jittor      |   18.9874    |     0.4499     |     22.8643     |      0.4316       |   
 
 
 ### Samples
