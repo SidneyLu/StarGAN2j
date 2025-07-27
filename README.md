@@ -38,15 +38,15 @@ Warnings:
 - The default cuda version is 12.2, with cuDNN 8, DO NOT USE cuDNN 9 or later!
 - CUDA 11.7/11.8/12.2/12.4/12.8 are all supported. 
 - Ada Lovelace(RTX40 Series) >= 11.8, Blackwell(RTX50 Series) >= 12.8
-- CORRECT File `/envs/stargan-v2j/lib/python3.10/site-packages/jittor/compile_extern.py`, in line 459
+- CORRECT File `/envs/stargan-v2j/lib/python3.10/site-packages/jittor/compile_extern.py`, in line 459  
     CHANGE
-```python
-url = "https://cloud.tsinghua.edu.cn/f/171e49e5825549548bc4/?dl=1"
-```
+    ```
+    url = "https://cloud.tsinghua.edu.cn/f/171e49e5825549548bc4/?dl=1"
+    ```
     INTO
-```python
-url = "https://cg.cs.tsinghua.edu.cn/jittor/assets/cutlass.zip"
-```
+    ```
+    url = "https://cg.cs.tsinghua.edu.cn/jittor/assets/cutlass.zip"
+    ```
     (The original url is broken)
 
 Check if your environment is ready:
