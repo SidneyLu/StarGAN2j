@@ -85,7 +85,6 @@ def lerp(input, end, weight):
     return input + weight * (end - input)
 
 
-@jt.no_grad()
 def translate_and_reconstruct(nets, args, x_src, y_src, x_ref, y_ref, filename):
     """
     基于参考图像进行风格转换并重建原始图像
@@ -116,7 +115,6 @@ def translate_and_reconstruct(nets, args, x_src, y_src, x_ref, y_ref, filename):
     del x_concat  # 释放内存
 
 
-@jt.no_grad()
 def translate_using_latent(nets, args, x_src, y_trg_list, z_trg_list, psi, filename):
     """
     使用潜在空间向量进行风格转换
@@ -152,7 +150,6 @@ def translate_using_latent(nets, args, x_src, y_trg_list, z_trg_list, psi, filen
     save_image(x_concat, N, filename)
 
 
-@jt.no_grad()
 def translate_using_reference(nets, args, x_src, x_ref, y_ref, filename):
     """
     使用参考图像进行风格转换
@@ -184,7 +181,6 @@ def translate_using_reference(nets, args, x_src, x_ref, y_ref, filename):
     del x_concat  # 释放内存
 
 
-@jt.no_grad()
 def debug_image(nets, args, inputs, step):
     """
     生成调试图像，包括循环一致性、潜在空间引导和参考引导的风格转换
