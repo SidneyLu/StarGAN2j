@@ -165,7 +165,7 @@ class Solver(jt.Module):
             optims['discriminator'].step(d_loss, retain_graph=True)
 
             d_loss, d_losses_ref = compute_d_loss(nets, args, x_real, y_org, y_trg, x_ref=x_ref, masks=masks, itr=i)
-            optims['discriminator'].step(d_loss, retain_graph=True)
+            optims['discriminator'].step(d_loss)
 
             g_loss, g_losses_latent = compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=(z_trg, z_trg2), masks=masks, itr=i)
             optims['generator'].step(g_loss, retain_graph=True)
@@ -173,7 +173,7 @@ class Solver(jt.Module):
             optims['style_encoder'].step(g_loss, retain_graph=True)
 
             g_loss, g_losses_ref = compute_g_loss(nets, args, x_real, y_org, y_trg, x_refs=(x_ref, x_ref2), masks=masks, itr=i)
-            optims['generator'].step(g_loss, retain_graph=True)
+            optims['generator'].step(g_loss)
 
             moving_average(nets.generator, nets_ema.generator, decay=0.999)
             moving_average(nets.mapping_network, nets_ema.mapping_network, decay=0.999)
