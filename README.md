@@ -87,7 +87,7 @@ Original training logs are also saved in `expr/checkpoints`
 ## Evaluation
 | Dataset | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) |
 |:-------:|:------------:|:--------------:|:---------------:|:-----------------:|
-|  AFHQ2  |   18.9874    |     0.4499     |     22.8643     |      0.4316       |
+|  AFHQ2  |              |                |                 |                   |
 
 run
 ```bash
@@ -98,8 +98,7 @@ Original evaluation logs are also saved in `expr/eval`
 `evalt` - PyTorch, `evalj` - Jittor
 
 ## Alignment with Official Pytorch Implementation
-### Loss Curves 
-(use `visualizer.py` to visualize json files)
+### Loss Curves
 
 ### Evaluation Metrics (on AFHQ2 Dataset)
 Referring to the official pretrained weights for real performance.
