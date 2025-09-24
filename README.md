@@ -68,19 +68,12 @@ Then run
 ```bash
 python main.py --mode sample --resume_iter 100000 
 ```
-Pretrained network is stored in `expr/checkpoints`, run
-```bash
-unzip expr/checkpoints/nets_ema_100000.zip
-```
-to get the .pth file. \
+Pretrained weights can be downloaded from https://pan.baidu.com/s/1b5aMoZvAwK6Dkl1WfXnLmw?pwd=k74b \
 Outputs will be saved in `expr/results` directory. 
 
 ## Training 
 ### (on AFHQ2 Dataset)
-Run
-```bash
-bash download.sh
-```
+Get the dataset from https://www.dropbox.com/s/vkzjokiwof5h8w6/afhq_v2.zip?dl=0
 Then
 ```bash
 python main.py --mode train 
@@ -114,7 +107,7 @@ Referring to the official pretrained weights for real performance.
 | Implementation  | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) |
 |:---------------:|:------------:|:--------------:|:---------------:|:-----------------:|
 |     PyTorch     |   16.9997    |     0.4495     |     20.6854     |      0.4318       |
-|     Jittor      |   18.9874    |     0.4499     |     22.8643     |      0.4316       |   
+|     Jittor      |              |                |                 |                   |   
 
 
 ### Samples
