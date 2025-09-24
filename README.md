@@ -86,7 +86,7 @@ python main.py --mode train
 ```
 Generated images and network checkpoints will be stored in `expr/samples` and `expr/checkpoints` directories respectively. \
 Total iterations: 100000
-Trained on RTX 4090 (48GB), single GPU, for 6 Days  
+Trained on RTX 4090 (48GB), single GPU, 
 Original training logs are also saved in `expr/checkpoints`  
 `logt` - PyTorch, `logj` - Jittor
 
@@ -106,13 +106,6 @@ Original evaluation logs are also saved in `expr/eval`
 ## Alignment with Official Pytorch Implementation
 ### Loss Curves 
 (use `visualizer.py` to visualize json files)
-#### PyTorch
-<p><img width="100%" src="assets/losst.jpg" /></p>
-Spuriously Underfitted after 30000 iterations
-
-#### Jittor
-<p><img width="100%" src="assets/lossj.jpg" /></p>
-Failed to converge
 
 ### Evaluation Metrics (on AFHQ2 Dataset)
 Referring to the official pretrained weights for real performance.
