@@ -186,7 +186,7 @@ class MappingNetwork(nn.Module):
         layers = []
         layers += [nn.Linear(latent_dim, 512), nn.ReLU()]
         for _ in range(3):
-            layers += [nn.Linear(512, 512), nn.ReLU()]
+            layers += [nn.Linear(512, 512), nn.ReLU(),]
         self.shared = nn.Sequential(*layers)
 
         self.unshared = nn.ModuleList()

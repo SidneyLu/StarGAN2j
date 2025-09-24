@@ -90,8 +90,6 @@ class ReferenceDataset(Dataset):
         label = self.targets[index]
         img = Image.open(fname).convert('RGB')
         img2 = Image.open(fname2).convert('RGB')
-        img = jittor.array(np.array(img))
-        img2 = jittor.array(np.array(img2))
         if self.transform is not None:
             img = self.transform(img)
             img2 = self.transform(img2)
