@@ -11,8 +11,6 @@
 > [Yunjey Choi](https://github.com/yunjey)\*, [Youngjung Uh](https://github.com/youngjung)\*, [Jaejun Yoo](http://jaejunyoo.blogspot.com/search/label/kr)\*, [Jung-Woo Ha](https://www.facebook.com/jungwoo.ha.921)<br>
 > In CVPR 2020. (* indicates equal contribution)<br>
 
-## Training Log Available Soon！！！
-
 ## Dependencies
 ### Linux or WSL:
 Check your g++ compiler first
@@ -87,8 +85,7 @@ Original training logs are also saved in `expr/checkpoints`
 ## Evaluation
 | Dataset | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) |
 |:-------:|:------------:|:--------------:|:---------------:|:-----------------:|
-|  AFHQ2  |              |                |                 |                   |
-
+|  AFHQ2  |   19.1848    |     0.4492     |     22.8737     |      0.4316       |  
 run
 ```bash
 python main.py --mode eval --resume_iter 100000
@@ -99,6 +96,8 @@ Original evaluation logs are also saved in `expr/eval`
 
 ## Alignment with Official Pytorch Implementation
 ### Loss Curves
+More intense oscillation in Jittor observed.
+<p><img width="100%" src="assets/loss.png" /></p>
 
 ### Evaluation Metrics (on AFHQ2 Dataset)
 Referring to the official pretrained weights for real performance.
@@ -106,7 +105,7 @@ Referring to the official pretrained weights for real performance.
 | Implementation  | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) |
 |:---------------:|:------------:|:--------------:|:---------------:|:-----------------:|
 |     PyTorch     |   16.9997    |     0.4495     |     20.6854     |      0.4318       |
-|     Jittor      |              |                |                 |                   |   
+|     Jittor      |   19.1848    |     0.4492     |     22.8737     |      0.4316       |   
 
 
 ### Samples
