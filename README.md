@@ -86,6 +86,8 @@ Original training logs are also saved in `expr/checkpoints`
 | Dataset | FID (latent) | LPIPS (latent) | FID (reference) | LPIPS (reference) |
 |:-------:|:------------:|:--------------:|:---------------:|:-----------------:|
 |  AFHQ2  |   19.1848    |     0.4492     |     22.8737     |      0.4316       |  
+
+
 run
 ```bash
 python main.py --mode eval --resume_iter 100000
