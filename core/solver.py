@@ -27,14 +27,16 @@ def r1_reg(d_out, x_in):
     reg = 0.5 * grad2.reshape(batch_size, -1).sum(1).mean(0)
     return reg
 
-
 def moving_average(model, model_test, decay=0.999):
     for param, param_test in zip(model.parameters(), model_test.parameters()):
         param_test.data = utils.lerp(param.data, param_test.data, decay)
 
+def requires_grad(model, flag=True):
+    for p in model.parameters():
+        p.requires_grad = flag
 
 def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, masks=None, itr=None, LogD=None):
-    x_real.start_grad()
+    x_real.requires_grad = True
 
     out = nets.discriminator(x_real, y_org)
     loss_real = adv_loss(out, 1)
@@ -53,8 +55,7 @@ def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, mas
 
     loss = loss_real + loss_fake + args.lambda_reg * loss_reg
 
-    return loss, Munch(real=loss_real, fake=loss_fake, reg=loss_reg)
-
+    return loss, Munch(real=loss_real.item(), fake=loss_fake.item(), reg=loss_reg.item())
 
 def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, masks=None, itr=None, LogG=None):
     if z_trgs is not None:
@@ -90,8 +91,7 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
     loss_cycle = jt.mean(jt.abs(x_rec - x_real))
 
     loss = loss_adv + args.lambda_sty * loss_sty - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cycle
-    return loss, Munch(adv=loss_adv, sty=loss_sty, ds=loss_ds, cycle=loss_cycle)
-
+    return loss, Munch(adv=loss_adv.item(), sty=loss_sty.item(), ds=loss_ds.item(), cycle=loss_cycle.item())
 
 class Solver(jt.Module):
     def __init__(self, args):
@@ -124,7 +124,7 @@ class Solver(jt.Module):
                 CheckpointIO(ospj(args.checkpoint_dir, 'nets_ema_{:06d}.pth'), data_parallel=True, **self.nets_ema)]
 
         for name, network in self.named_children():
-            if 'ema' not in name:
+            if 'ema' not in name and 'fan' not in name:
                 print('Initializing %s...' % name)
                 network.apply(utils.he_init)
 
@@ -135,6 +135,10 @@ class Solver(jt.Module):
     def _load_checkpoint(self, step):
         for ckptio in self.ckptios:
             ckptio.load(step)
+
+    def _reset_grad(self):
+        for optim in self.optims.values():
+            optim.zero_grad()
 
     def train(self, loaders):
         args = self.args
@@ -162,29 +166,43 @@ class Solver(jt.Module):
             y_trg = inputs.y_ref
             z_trg = inputs.z_trg
             z_trg2 = inputs.z_trg2
-            masks = None
+            masks = nets.fan.get_heatmap(x_real) if args.w_hpf > 0 else None
 
+            requires_grad(nets.generator, False)
+            requires_grad(nets.mapping_network, False)
+            requires_grad(nets.style_encoder, False)
+            requires_grad(nets.discriminator, True)
+
+            self._reset_grad()
             d_loss, d_losses_latent = compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=z_trg, masks=masks, itr=i)
-            optims['discriminator'].step(d_loss)
+            d_loss.backward()
+            optims['discriminator'].step()
 
+            self._reset_grad()
             d_loss, d_losses_ref = compute_d_loss(nets, args, x_real, y_org, y_trg, x_ref=x_ref, masks=masks, itr=i)
-            optims['discriminator'].step(d_loss)
+            d_loss.backward()
+            optims['discriminator'].step()
 
-            g_loss, g_losses_latent = compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=(z_trg, z_trg2), masks=masks, itr=i)
-            optims['generator'].step(g_loss, retain_graph=True)
-            optims['mapping_network'].step(g_loss, retain_graph=True)
-            optims['style_encoder'].step(g_loss, retain_graph=True)
+            requires_grad(nets.discriminator, False)
+            requires_grad(nets.generator, True)
+            requires_grad(nets.mapping_network, True)
+            requires_grad(nets.style_encoder, True)
 
-            g_loss, g_losses_ref = compute_g_loss(nets, args, x_real, y_org, y_trg, x_refs=(x_ref, x_ref2), masks=masks, itr=i)
-            optims['generator'].step(g_loss)
+            self._reset_grad()
+            g_loss_latent, g_losses_latent = compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=(z_trg, z_trg2), masks=masks, itr=i)
+            g_loss_ref, g_losses_ref = compute_g_loss(nets, args, x_real, y_org, y_trg, x_refs=(x_ref, x_ref2), masks=masks, itr=i)
+            total_g_loss = g_loss_latent + g_loss_ref
+            total_g_loss.backward()
+            optims['generator'].step()
+            optims['mapping_network'].step()
+            optims['style_encoder'].step()
 
             moving_average(nets.generator, nets_ema.generator, decay=0.999)
             moving_average(nets.mapping_network, nets_ema.mapping_network, decay=0.999)
             moving_average(nets.style_encoder, nets_ema.style_encoder, decay=0.999)
 
             if args.lambda_ds > 0:
-                args.lambda_ds -= (initial_lambda_ds / args.ds_iter)
-
+                args.lambda_ds = max(0, args.lambda_ds - (initial_lambda_ds / args.ds_iter))
 
             if (i+1) % args.print_every == 0:
                 elapsed = time.time() - start_time
@@ -199,18 +217,17 @@ class Solver(jt.Module):
                 log += ' '.join(['%s: [%.4f]' % (key, value) for key, value in all_losses.items()])
                 print(log)
 
-            # generate images for debugging
             if (i + 1) % args.sample_every == 0:
                 os.makedirs(args.sample_dir, exist_ok=True)
                 utils.debug_image(nets_ema, args, inputs=inputs_val, step=i + 1)
 
-            # save model checkpoints
             if (i + 1) % args.save_every == 0:
                 self._save_checkpoint(step=i + 1)
 
             if (i+1) % args.eval_every == 0:
                 calculate_metrics(nets_ema, args, step=i+1, mode='latent')
                 calculate_metrics(nets_ema, args, step=i+1, mode='reference')
+
     @jt.no_grad()
     def sample(self, loaders):
         args = self.args
@@ -219,7 +236,6 @@ class Solver(jt.Module):
         os.makedirs(args.result_dir, exist_ok=True)
         self._load_checkpoint(args.resume_iter)
 
-        # Fetch source and reference images
         src = next(InputFetcher(loaders.src, None, args.latent_dim, 'test'))
         ref = next(InputFetcher(loaders.ref, None, args.latent_dim, 'test'))
 
